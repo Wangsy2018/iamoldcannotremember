@@ -32,6 +32,13 @@ https://wangsy2018.github.io/iamoldcannotremember/
 - 改了界面后，把 `docs/sw.js` 里的 `CACHE` 版本号加一，手机上才会更新
 - 手机：Chrome 打开网址 →「⋮」→「安装应用」/「添加到主屏幕」
 
+## 会议邮件截图
+
+- 点输入框旁的 📷 选截图（可多选）；电脑上截图后在页面里直接 Ctrl/⌘+V
+- 后台用 Google 云端硬盘的文字识别读出文字（临时文件用完即删），再交给 DeepSeek 解析
+- Zoom / Teams / Meet 链接以截图原文为准，写进日程的「地点」和备注，手机提醒通知里能看到；日程旁有「进入会议」按钮
+- 需要 Apps Script 里开启「Drive API」服务
+
 ## 分类
 
 - 每个分类对应一个同名 Google 日历和同名待办清单，第一次用到时自动创建

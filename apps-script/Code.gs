@@ -17,6 +17,8 @@ const CATEGORIES = {
 };
 const CATEGORY_NAMES = Object.keys(CATEGORIES);
 const OTHER = '其他';
+// Zoom / Teams / Meet / Webex 会议链接
+const MEETING_URL_RE = /https?:\/\/[^\s<>"']*(?:zoom\.us|zoom\.com|teams\.microsoft\.com|teams\.live\.com|meet\.google\.com|webex\.com)[^\s<>"']*/gi;
 const DT_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 const D_RE = /^\d{4}-\d{2}-\d{2}$/;
 const WEEKDAY = { Mon: '周一', Tue: '周二', Wed: '周三', Thu: '周四', Fri: '周五', Sat: '周六', Sun: '周日' };
@@ -52,6 +54,7 @@ function doPost(e) {
 const API_ = {
   ping: function () { return true; },
   processInput: processInput_,
+  processImage: processImage_,
   undo: undo_,
   completeTask: completeTask_,
   getRange: getRange_,
@@ -158,7 +161,8 @@ function systemPrompt_(now) {
   ].join('\n');
 }
 
-function callDeepSeek_(text) {
+/** extraRules：追加在系统提示后面的补充规则（比如截图识别时的邮件规则） */
+function callDeepSeek_(text, extraRules) {
   const props = PropertiesService.getScriptProperties();
   const key = props.getProperty('DEEPSEEK_API_KEY');
   if (!key) throw new Error('还没设置 DEEPSEEK_API_KEY：项目设置 → 脚本属性里添加');
@@ -173,7 +177,7 @@ function callDeepSeek_(text) {
       temperature: 0,
       response_format: { type: 'json_object' },
       messages: [
-        { role: 'system', content: systemPrompt_(new Date()) },
+        { role: 'system', content: systemPrompt_(new Date()) + (extraRules ? '\n\n' + extraRules : '') },
         { role: 'user', content: text },
       ],
     }),
@@ -199,7 +203,74 @@ function callDeepSeek_(text) {
 function processInput_(text, forcedCategory) {
   text = String(text || '').trim();
   if (!text) throw new Error('请输入内容');
-  const parsed = callDeepSeek_(text);
+  return createAll_(callDeepSeek_(text), forcedCategory);
+}
+
+/**
+ * 会议邮件截图 → 文字识别（借 Google 云端硬盘的 OCR，临时文件用完即删）→ AI 解析 → 创建。
+ * 返回识别出的原文，方便核对。
+ */
+function processImage_(b64, mime, forcedCategory) {
+  if (!b64) throw new Error('没收到图片');
+  const blob = Utilities.newBlob(Utilities.base64Decode(b64), mime || 'image/jpeg', 'meeting.jpg');
+  const text = ocr_(blob).trim();
+  if (!text) throw new Error('图片里没识别出文字');
+  const parsed = callDeepSeek_(text.slice(0, 12000), emailRules_());
+  fixMeetingLinks_(parsed.items, text);
+  return { text: text, results: createAll_(parsed, forcedCategory) };
+}
+
+function ocr_(blob) {
+  const file = Drive.Files.create(
+    { name: 'AI日程-临时文字识别', mimeType: 'application/vnd.google-apps.document' }, blob, { fields: 'id' });
+  try {
+    return UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files/' + file.id + '/export?mimeType=text/plain', {
+      headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+    }).getContentText();
+  } finally {
+    Drive.Files.remove(file.id);
+  }
+}
+
+function emailRules_() {
+  return [
+    '补充：用户发来的是会议邀请邮件截图经 OCR 识别出的文字，可能有错字和断行。',
+    'a. 只提取会议或活动本身，忽略签名、免责声明、引用的旧邮件里的时间。',
+    'b. 邮件写明了其他时区（如 EST、GMT+1、UTC-05:00）→ 换算成 ' + tz_() + ' 本地时间，并在 notes 里写上原文时间。',
+    'c. 会议链接（Zoom、Teams、Google Meet、Webex 等）原样填进 location，一个字符都不要改；会议号、密码写进 notes。',
+    'd. 邮件没提提醒 → reminders 取 [15]。',
+    'e. 没写结束时间但写了时长 → 按时长算 end。',
+  ].join('\n');
+}
+
+/**
+ * AI 可能改坏或漏掉会议链接：以 OCR 原文里的链接为准，并把链接写进备注。
+ * 链接放在 location，手机日历的提醒通知里会显示出来。
+ */
+function fixMeetingLinks_(items, text) {
+  const found = text.match(MEETING_URL_RE) || [];
+  if (!found.length || !Array.isArray(items)) return;
+  const compact = text.replace(/\s+/g, '');
+  items.forEach(function (it) {
+    if (it.type === 'task') return;
+    const loc = String(it.location || '');
+    const m = loc.match(MEETING_URL_RE);
+    let url;
+    if (m && compact.indexOf(m[0]) !== -1) url = m[0];
+    else if (m) { url = found[0]; it.location = loc.replace(m[0], url); }
+    else { url = found[0]; it.location = loc ? url + ' ' + loc : url; }
+    const notes = String(it.notes || '');
+    if (notes.indexOf(url) === -1) it.notes = (notes ? notes + '\n' : '') + '会议链接：' + url;
+  });
+}
+
+function meetingLink_(s) {
+  const m = String(s || '').replace(/&amp;/g, '&').match(MEETING_URL_RE);
+  return m ? m[0] : '';
+}
+
+/** 逐条创建，某条失败不影响其他条 */
+function createAll_(parsed, forcedCategory) {
   const items = Array.isArray(parsed.items) ? parsed.items : [];
   if (!items.length) throw new Error(parsed.error || '没识别出日程或待办，换个说法试试');
 
@@ -259,6 +330,7 @@ function getRange_(startKey, endKey) {
         // 非分类日历统一用灰色，免得和分类色撞色
         color: cat === OTHER ? '#8e8e93' : CATEGORIES[cat].color,
         location: e.location || '',
+        meetLink: e.hangoutLink || meetingLink_(e.location) || meetingLink_(e.description),
         link: e.htmlLink,
       });
     });
@@ -352,6 +424,7 @@ function createEvent_(it, cat) {
     when: when,
     reminder: reminderText_(mins),
     repeat: ev.recurrence ? '重复' : '',
+    meetLink: meetingLink_(ev.location) || meetingLink_(ev.description),
     link: created.htmlLink,
   };
 }

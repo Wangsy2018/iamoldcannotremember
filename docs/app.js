@@ -165,6 +165,75 @@ async function submit() {
   }
 }
 
+// ---------- 会议邮件截图 ----------
+
+/** 压缩成长边不超过 2400 的 JPEG，再转 base64，文字识别够用、上传也快 */
+async function imageToBase64(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = () => reject(new Error('图片打不开'));
+      i.src = url;
+    });
+    const scale = Math.min(1, 2400 / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.naturalWidth * scale);
+    c.height = Math.round(img.naturalHeight * scale);
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.88).split(',')[1];
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+async function processImages(files) {
+  files = [...files].filter((f) => f.type.startsWith('image/'));
+  if (!files.length) return;
+  showView('today');
+  const box = $('result'); box.innerHTML = '';
+  $('imgBtn').disabled = true; send.disabled = true;
+  for (let i = 0; i < files.length; i++) {
+    const card = el('div', 'card');
+    const head = el('div', 'card-head');
+    const label = '📷 截图' + (files.length > 1 ? ' ' + (i + 1) + '/' + files.length : '');
+    const status = el('span', '', '上传中…');
+    head.appendChild(el('span', '', label)); head.appendChild(status);
+    card.appendChild(head);
+    box.appendChild(card);
+    try {
+      const b64 = await imageToBase64(files[i]);
+      status.textContent = '识别文字、AI 解析中…（约 10 秒）';
+      const out = await api('processImage', b64, 'image/jpeg', state.category);
+      status.textContent = '完成';
+      out.results.forEach((r) => card.appendChild(resultRow(r)));
+      const d = el('details', 'ocr');
+      d.appendChild(el('summary', '', '查看识别出的文字'));
+      d.appendChild(el('pre', '', out.text));
+      card.appendChild(d);
+    } catch (e) {
+      if (e.auth) return handleError(e);
+      status.textContent = '';
+      card.appendChild(el('div', 'err', '出错了：' + (e.message || e)));
+    }
+  }
+  $('imgBtn').disabled = false; send.disabled = false;
+  refresh();
+}
+
+$('imgBtn').onclick = () => $('imgInput').click();
+$('imgInput').onchange = () => { processImages($('imgInput').files); $('imgInput').value = ''; };
+// 电脑上截图后直接 Ctrl/⌘+V
+document.addEventListener('paste', (e) => {
+  if (!state.token) return;
+  const files = [...(e.clipboardData ? e.clipboardData.files : [])].filter((f) => f.type.startsWith('image/'));
+  if (files.length) { e.preventDefault(); processImages(files); }
+});
+
 function tag(category) {
   const t = el('span', 'tag', category);
   t.style.color = NEON[category] || NEON['其他'];
@@ -188,10 +257,13 @@ function resultRow(r) {
   body.appendChild(el('div', 'meta', [r.when, r.reminder, r.repeat].filter(Boolean).join(' · ')));
   row.appendChild(body);
 
+  row.classList.add('wide');   // 按钮多，手机上另起一行
+  const acts = el('div', 'acts');
+  if (r.meetLink) acts.appendChild(meetButton(r.meetLink));
   if (r.link) {
     const a = el('a', 'ghost', '查看');
     a.href = r.link; a.target = '_blank'; a.rel = 'noopener';
-    row.appendChild(a);
+    acts.appendChild(a);
   }
   const u = el('button', 'ghost', '撤销');
   u.onclick = async () => {
@@ -202,7 +274,8 @@ function resultRow(r) {
       refresh();
     } catch (e) { u.disabled = false; handleError(e); }
   };
-  row.appendChild(u);
+  acts.appendChild(u);
+  row.appendChild(acts);
   return row;
 }
 
@@ -297,10 +370,20 @@ function eventRow(e, k) {
   meta.appendChild(document.createTextNode([e.category === '其他' ? e.calName : '', e.location].filter(Boolean).join(' · ')));
   body.appendChild(meta);
   row.appendChild(body);
+  const acts = el('div', 'acts');
+  if (e.meetLink) { row.classList.add('wide'); acts.appendChild(meetButton(e.meetLink)); }
   const a = el('a', 'ghost', '查看');
   a.href = e.link; a.target = '_blank'; a.rel = 'noopener';
-  row.appendChild(a);
+  acts.appendChild(a);
+  row.appendChild(acts);
   return row;
+}
+
+function meetButton(url) {
+  const name = /zoom\./i.test(url) ? 'Zoom' : /teams\./i.test(url) ? 'Teams' : /meet\.google/i.test(url) ? 'Meet' : '会议';
+  const a = el('a', 'meet', '进入 ' + name);
+  a.href = url; a.target = '_blank'; a.rel = 'noopener';
+  return a;
 }
 
 function taskRow(t) {

@@ -94,10 +94,17 @@
   .item .body { flex: 1; min-width: 0; }
   .item .title { font-weight: 600; overflow-wrap: anywhere; }
   .item .meta { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .item .acts { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
   .tag { font-size: 11px; padding: 1px 7px; border-radius: 99px; margin-right: 6px; font-weight: 600; border: 1px solid currentColor; }
   .ok { color: var(--ok); } .err { color: var(--err); }
   .empty { color: var(--muted); font-size: 14px; padding: 6px 0; }
-  .result { margin-top: 12px; }
+  .result { margin-top: 12px; display: grid; gap: 10px; }
+  .actions { display: flex; gap: 8px; align-items: center; margin-left: auto; }
+  .meet { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 99px; white-space: nowrap; align-self: center;
+    color: #fff; background: linear-gradient(135deg, #2d8cff, #22d3ee); box-shadow: 0 0 14px rgba(45, 140, 255, .45); }
+  .card-head { font-size: 12px; color: var(--muted); margin-bottom: 4px; display: flex; justify-content: space-between; gap: 8px; }
+  details.ocr { margin-top: 6px; font-size: 12px; color: var(--muted); }
+  details.ocr pre { white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow: auto; margin: 6px 0 0; font: inherit; }
 
   /* 今天：时间线 */
   .timeline .item { position: relative; padding-left: 2px; }
@@ -173,6 +180,9 @@
     .ev { font-size: 9.5px; line-height: 14px; height: 14px; padding: 0 2px; border-radius: 3px; }
     .ev .t { display: none; }
     .grid { gap: 2px; }
+    /* 手机上按钮另起一行，别挤标题 */
+    .item.wide { flex-wrap: wrap; }
+    .item.wide .acts { width: 100%; justify-content: flex-end; gap: 8px; margin-top: -4px; }
   }
 </style>
 </head>
@@ -204,11 +214,15 @@
   <!-- 今天 -->
   <section class="view" id="view-today">
     <div class="composer"><div class="inner">
-      <textarea id="input" placeholder="一句话告诉我，例如：明天下午3点和王总开会，提前半小时提醒我"></textarea>
+      <textarea id="input" placeholder="一句话告诉我，或点 📷 上传会议邮件截图（电脑上可直接粘贴截图）"></textarea>
       <div class="row">
         <div class="seg" id="catSeg"></div>
-        <button id="send">创建</button>
+        <div class="actions">
+          <button class="icon" id="imgBtn" aria-label="上传会议邮件截图">📷</button>
+          <button id="send">创建</button>
+        </div>
       </div>
+      <input type="file" id="imgInput" accept="image/*" multiple hidden>
     </div></div>
     <div id="result" class="result"></div>
 
