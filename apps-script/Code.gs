@@ -217,6 +217,7 @@ function processImage_(b64, mime, forcedCategory) {
   if (!text) throw new Error('图片里没识别出文字');
   const parsed = callDeepSeek_(text.slice(0, 12000), emailRules_());
   fixMeetingLinks_(parsed.items, text);
+  fixMeetingInfo_(parsed.items, text);
   return { text: text, results: createAll_(parsed, forcedCategory) };
 }
 
@@ -237,7 +238,8 @@ function emailRules_() {
     '补充：用户发来的是会议邀请邮件截图经 OCR 识别出的文字，可能有错字和断行。',
     'a. 只提取会议或活动本身，忽略签名、免责声明、引用的旧邮件里的时间。',
     'b. 邮件写明了其他时区（如 EST、GMT+1、UTC-05:00）→ 换算成 ' + tz_() + ' 本地时间，并在 notes 里写上原文时间。',
-    'c. 会议链接（Zoom、Teams、Google Meet、Webex 等）原样填进 location，一个字符都不要改；会议号、密码写进 notes。',
+    'c. 会议链接（Zoom、Teams、Google Meet、Webex 等）原样填进 location，一个字符都不要改。',
+    'c2. 会议号（Meeting ID）填 meeting_id，密码（Passcode/Password）填 passcode，都照抄原文；没有就填 null。',
     'd. 邮件没提提醒 → reminders 取 [15]。',
     'e. 没写结束时间但写了时长 → 按时长算 end。',
   ].join('\n');
@@ -261,6 +263,38 @@ function fixMeetingLinks_(items, text) {
     else { url = found[0]; it.location = loc ? url + ' ' + loc : url; }
     const notes = String(it.notes || '');
     if (notes.indexOf(url) === -1) it.notes = (notes ? notes + '\n' : '') + '会议链接：' + url;
+  });
+}
+
+const MEETING_ID_RE = /(?:会议号|会议\s*ID|Meeting\s*ID|Webinar\s*ID|Conference\s*ID)\s*[:：#]?\s*(\d[\d -]{6,16}\d)/i;
+const PASSCODE_RE = /(?:入会密码|会议密码|密码|Passcode|Password|Pass\s*code)\s*[:：]\s*([A-Za-z0-9@#$%^&*._!-]{3,20})/i;
+
+/** 从备注/邮件文字里找会议号和密码 */
+function parseMeetingInfo_(s) {
+  const text = String(s || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
+  const id = text.match(MEETING_ID_RE);
+  const pwd = text.match(PASSCODE_RE);
+  return { id: id ? id[1].trim().replace(/\s+/g, ' ') : '', pwd: pwd ? pwd[1] : '' };
+}
+
+/**
+ * 会议号、密码以 OCR 原文为准：AI 给的在原文里找不到就用正则从原文里取。
+ * 结果写进备注的固定两行，之后列表页从备注里读出来显示。
+ */
+function fixMeetingInfo_(items, text) {
+  if (!Array.isArray(items)) return;
+  const digits = text.replace(/\D/g, '');
+  const fromText = parseMeetingInfo_(text);
+  items.forEach(function (it) {
+    if (it.type === 'task') return;
+    let id = String(it.meeting_id || '').trim();
+    if (!id || digits.indexOf(id.replace(/\D/g, '')) === -1) id = fromText.id;
+    let pwd = String(it.passcode || '').trim();
+    if (!pwd || text.indexOf(pwd) === -1) pwd = fromText.pwd;
+    const lines = [];
+    if (id) lines.push('会议号：' + id);
+    if (pwd) lines.push('密码：' + pwd);
+    if (lines.length) it.notes = lines.join('\n') + (it.notes ? '\n' + it.notes : '');
   });
 }
 
@@ -331,6 +365,7 @@ function getRange_(startKey, endKey) {
         color: cat === OTHER ? '#8e8e93' : CATEGORIES[cat].color,
         location: e.location || '',
         meetLink: e.hangoutLink || meetingLink_(e.location) || meetingLink_(e.description),
+        meet: parseMeetingInfo_(e.description),
         link: e.htmlLink,
       });
     });
@@ -425,6 +460,7 @@ function createEvent_(it, cat) {
     reminder: reminderText_(mins),
     repeat: ev.recurrence ? '重复' : '',
     meetLink: meetingLink_(ev.location) || meetingLink_(ev.description),
+    meet: parseMeetingInfo_(ev.description),
     link: created.htmlLink,
   };
 }

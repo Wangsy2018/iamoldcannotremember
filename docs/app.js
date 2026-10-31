@@ -255,6 +255,7 @@ function resultRow(r) {
   title.appendChild(document.createTextNode((r.kind === 'event' ? '' : '[待办] ') + r.title));
   body.appendChild(title);
   body.appendChild(el('div', 'meta', [r.when, r.reminder, r.repeat].filter(Boolean).join(' · ')));
+  addMeetInfo(body, r.meet);
   row.appendChild(body);
 
   row.classList.add('wide');   // 按钮多，手机上另起一行
@@ -367,8 +368,11 @@ function eventRow(e, k) {
   body.appendChild(el('div', 'title', e.title));
   const meta = el('div', 'meta');
   meta.appendChild(tag(e.category));
-  meta.appendChild(document.createTextNode([e.category === '其他' ? e.calName : '', e.location].filter(Boolean).join(' · ')));
+  // 地点是会议链接时不重复显示，已有「进入会议」按钮
+  const place = e.meetLink && e.location.indexOf(e.meetLink) !== -1 ? e.location.replace(e.meetLink, '').trim() : e.location;
+  meta.appendChild(document.createTextNode([e.category === '其他' ? e.calName : '', place].filter(Boolean).join(' · ')));
   body.appendChild(meta);
+  addMeetInfo(body, e.meet);
   row.appendChild(body);
   const acts = el('div', 'acts');
   if (e.meetLink) { row.classList.add('wide'); acts.appendChild(meetButton(e.meetLink)); }
@@ -377,6 +381,28 @@ function eventRow(e, k) {
   acts.appendChild(a);
   row.appendChild(acts);
   return row;
+}
+
+/** 会议号、密码直接显示在预览里，点一下复制 */
+function addMeetInfo(body, meet) {
+  if (!meet || (!meet.id && !meet.pwd)) return;
+  const box = el('div', 'meetinfo');
+  [['会议号', meet.id], ['密码', meet.pwd]].forEach(([label, val]) => {
+    if (!val) return;
+    const chip = el('button', 'copy');
+    chip.appendChild(el('span', 'k', label));
+    chip.appendChild(document.createTextNode(val));
+    chip.onclick = async (ev) => {
+      ev.preventDefault(); ev.stopPropagation();
+      try {
+        await navigator.clipboard.writeText(val.replace(/[\s-]/g, label === '会议号' ? '' : '$&'));
+        chip.classList.add('done');
+        setTimeout(() => chip.classList.remove('done'), 1200);
+      } catch (e) { /* 浏览器不让复制就算了，号码已经显示出来 */ }
+    };
+    box.appendChild(chip);
+  });
+  body.appendChild(box);
 }
 
 function meetButton(url) {
