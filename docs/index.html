@@ -5,140 +5,174 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>AI 日程</title>
 <meta name="description" content="一句话建日程和待办，同步到 Google 日历">
-<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#070a14">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <style>
   :root {
-    --bg: #f6f7f9; --card: #ffffff; --text: #1d2129; --muted: #6b7280;
-    --line: #e5e7eb; --accent: #2563eb; --accent-text: #ffffff;
-    --ok: #059669; --err: #dc2626; --chip: #eef2ff; --today: #2563eb; --sel: #eff4ff;
-    --shadow: 0 6px 20px rgba(37, 99, 235, .35);
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #111318; --card: #1b1e25; --text: #e6e8ec; --muted: #9aa1ad;
-      --line: #2c313b; --accent: #4f8cff; --accent-text: #ffffff;
-      --ok: #34d399; --err: #f87171; --chip: #232a3a; --today: #4f8cff; --sel: #1f2a40;
-      --shadow: 0 6px 20px rgba(0, 0, 0, .5);
-    }
+    --bg: #070a14;
+    --glass: rgba(255, 255, 255, .055);
+    --glass-strong: rgba(255, 255, 255, .09);
+    --edge: rgba(255, 255, 255, .10);
+    --text: #e8ecf6;
+    --muted: #8a93a8;
+    --accent: #5b8cff;
+    --accent2: #a855f7;
+    --cyan: #22d3ee;
+    --ok: #34d399;
+    --err: #fb7185;
+    --grad: linear-gradient(135deg, #5b8cff 0%, #a855f7 100%);
+    --glow: 0 0 24px rgba(91, 140, 255, .45);
+    --nav-h: 64px;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { background: var(--bg); }
   body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font: 16px/1.5 -apple-system, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+    margin: 0; min-height: 100vh; color: var(--text);
+    font: 15px/1.5 -apple-system, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  }
+  /* 背景光晕 + 细网格 */
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background:
+      radial-gradient(600px 400px at 85% -5%, rgba(168, 85, 247, .28), transparent 60%),
+      radial-gradient(500px 380px at -10% 30%, rgba(91, 140, 255, .22), transparent 60%),
+      radial-gradient(420px 300px at 70% 105%, rgba(34, 211, 238, .14), transparent 60%),
+      linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px) 0 0 / 32px 32px,
+      linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px) 0 0 / 32px 32px;
   }
   main {
-    max-width: 980px; margin: 0 auto;
-    padding: calc(12px + env(safe-area-inset-top)) 16px calc(96px + env(safe-area-inset-bottom));
+    max-width: 760px; margin: 0 auto;
+    padding: calc(14px + env(safe-area-inset-top)) 16px calc(var(--nav-h) + 28px + env(safe-area-inset-bottom));
   }
-  header { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 12px; }
-  h1 { font-size: 20px; margin: 0; }
-  h2 { font-size: 15px; color: var(--muted); font-weight: 600; margin: 20px 0 8px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+  .hidden { display: none !important; }
+
+  /* 顶部 */
+  .top { display: flex; align-items: flex-start; justify-content: space-between; margin: 6px 2px 16px; }
+  .date { font-size: 28px; font-weight: 700; letter-spacing: .5px; line-height: 1.2; }
+  .date .wk { font-size: 16px; font-weight: 500; color: var(--muted); margin-left: 6px; }
+  .greet { color: var(--muted); font-size: 14px; margin-top: 4px; }
+  .greet b { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 700; }
+
+  /* 玻璃卡片 */
+  .card {
+    background: var(--glass); border: 1px solid var(--edge); border-radius: 18px; padding: 14px;
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  }
+  .section { font-size: 12px; letter-spacing: 2px; color: var(--muted); font-weight: 600; margin: 22px 4px 10px; text-transform: uppercase; }
+
+  button {
+    font: inherit; border: 0; border-radius: 12px; padding: 9px 18px; cursor: pointer;
+    background: var(--grad); color: #fff; font-weight: 600; box-shadow: var(--glow);
+  }
+  button:disabled { opacity: .5; cursor: default; }
+  button.ghost { background: transparent; box-shadow: none; color: var(--accent); padding: 4px 8px; font-weight: 500; }
+  button.icon { background: var(--glass); box-shadow: none; border: 1px solid var(--edge); color: var(--text); width: 40px; height: 40px; padding: 0; border-radius: 12px; font-size: 18px; }
+  a { color: var(--accent); text-decoration: none; }
+
+  /* 输入框：发光描边 */
+  .composer { position: relative; border-radius: 20px; padding: 1px; background: linear-gradient(135deg, rgba(91,140,255,.7), rgba(168,85,247,.7), rgba(34,211,238,.6)); }
+  .composer .inner { border-radius: 19px; background: rgba(10, 14, 28, .92); padding: 14px; }
   textarea, input[type=text], input[type=password] {
     width: 100%; border: 0; outline: none; background: transparent; color: var(--text); font: inherit;
   }
-  textarea { min-height: 56px; resize: vertical; }
+  textarea { min-height: 52px; resize: none; font-size: 16px; }
+  textarea::placeholder, input::placeholder { color: #5d6680; }
   .row { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
-  button {
-    font: inherit; border: 0; border-radius: 10px; padding: 8px 16px; cursor: pointer;
-    background: var(--accent); color: var(--accent-text);
+  .seg { display: inline-flex; gap: 4px; }
+  .seg button {
+    background: transparent; box-shadow: none; color: var(--muted); font-size: 13px; font-weight: 500;
+    padding: 5px 10px; border-radius: 99px; border: 1px solid var(--edge);
   }
-  button:disabled { opacity: .5; cursor: default; }
-  button.ghost { background: transparent; color: var(--accent); padding: 4px 8px; }
-  button.icon { background: transparent; color: var(--muted); font-size: 22px; padding: 2px 8px; }
-  .hint { color: var(--muted); font-size: 13px; }
-  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
-  .chip { background: var(--chip); color: var(--text); font-size: 13px; padding: 4px 10px; border-radius: 99px; }
-  .seg { display: inline-flex; background: var(--chip); border-radius: 10px; padding: 2px; }
-  .seg button { background: transparent; color: var(--text); font-size: 14px; padding: 5px 10px; border-radius: 8px; }
-  .seg button.on { background: var(--card); box-shadow: 0 1px 2px rgba(0,0,0,.15); font-weight: 600; }
-  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: 1px; }
-  .hidden { display: none !important; }
+  .seg button.on { color: #fff; border-color: transparent; background: var(--glass-strong); box-shadow: inset 0 0 0 1px rgba(255,255,255,.25); }
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; box-shadow: 0 0 8px currentColor; }
 
-  .result { margin-top: 10px; }
-  .item { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--line); }
+  /* 列表行 */
+  .item { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-top: 1px solid rgba(255,255,255,.06); }
   .item:first-child { border-top: 0; }
   .item .body { flex: 1; min-width: 0; }
   .item .title { font-weight: 600; overflow-wrap: anywhere; }
-  .item .meta { color: var(--muted); font-size: 13px; }
-  .tag { font-size: 12px; padding: 1px 6px; border-radius: 6px; color: #fff; margin-right: 6px; font-weight: 500; }
+  .item .meta { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .tag { font-size: 11px; padding: 1px 7px; border-radius: 99px; margin-right: 6px; font-weight: 600; border: 1px solid currentColor; }
   .ok { color: var(--ok); } .err { color: var(--err); }
-  .bar { width: 4px; align-self: stretch; border-radius: 2px; flex-shrink: 0; }
-  .when { min-width: 92px; white-space: nowrap; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; flex-shrink: 0; }
-  a { color: var(--accent); text-decoration: none; }
-  input[type=checkbox] { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--accent); }
   .empty { color: var(--muted); font-size: 14px; padding: 6px 0; }
+  .result { margin-top: 12px; }
+
+  /* 今天：时间线 */
+  .timeline .item { position: relative; padding-left: 2px; }
+  .when { min-width: 50px; white-space: nowrap; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; padding-top: 1px; }
+  .when b { display: block; color: var(--text); font-size: 15px; font-weight: 600; }
+  .node { width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; box-shadow: 0 0 10px currentColor, 0 0 2px currentColor; background: currentColor; }
+  .upday { font-size: 13px; color: var(--muted); margin: 14px 0 2px; }
+  .upday:first-child { margin-top: 0; }
+  input[type=checkbox] {
+    appearance: none; -webkit-appearance: none; width: 20px; height: 20px; margin: 1px 0 0; flex-shrink: 0;
+    border-radius: 6px; border: 1.5px solid var(--muted); background: transparent; cursor: pointer; display: grid; place-items: center;
+  }
+  input[type=checkbox]:checked { background: var(--grad); border-color: transparent; }
+  input[type=checkbox]:checked::after { content: "✓"; color: #fff; font-size: 13px; font-weight: 700; }
+
+  /* 统计块 */
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+  .stat { padding: 12px; border-radius: 16px; background: var(--glass); border: 1px solid var(--edge); }
+  .stat .n { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat .l { font-size: 12px; color: var(--muted); }
 
   /* 月历 */
-  .calbar { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; flex-wrap: wrap; }
-  .calbar .month { font-size: 18px; font-weight: 600; min-width: 112px; text-align: center; }
-  .calbar .nav { background: transparent; color: var(--text); font-size: 20px; padding: 2px 10px; }
-  .calbar .todaybtn { background: var(--chip); color: var(--text); font-size: 14px; padding: 4px 12px; }
-  .calbar .legend { margin-left: auto; }
-  .legend .chip { cursor: pointer; user-select: none; }
+  .calbar { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .calbar .month { font-size: 18px; font-weight: 700; min-width: 110px; text-align: center; }
+  .calbar .nav { background: transparent; box-shadow: none; color: var(--text); font-size: 22px; padding: 0 10px; }
+  .calbar .todaybtn { background: var(--glass-strong); box-shadow: none; color: var(--text); font-size: 13px; padding: 5px 12px; font-weight: 500; }
+  .legend { display: flex; gap: 6px; flex-wrap: wrap; width: 100%; margin-top: 4px; }
+  .legend .chip { font-size: 12px; padding: 3px 10px; border-radius: 99px; border: 1px solid var(--edge); cursor: pointer; user-select: none; color: var(--text); }
   .legend .chip.off { opacity: .35; text-decoration: line-through; }
-  .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
-  .wd { font-size: 12px; color: var(--muted); text-align: center; padding: 4px 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-  .cell { min-height: 96px; padding: 2px 3px 4px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); cursor: pointer; overflow: hidden; }
-  .cell.out { background: color-mix(in srgb, var(--bg) 60%, transparent); }
-  .cell.out .num { color: var(--muted); opacity: .6; }
-  .cell.sel { background: var(--sel); }
-  .num { font-size: 13px; width: 24px; height: 24px; line-height: 24px; text-align: center; border-radius: 50%; margin: 0 auto 2px; }
-  .cell.today .num { background: var(--today); color: #fff; font-weight: 600; }
-  .ev { font-size: 12px; line-height: 18px; height: 18px; border-radius: 4px; padding: 0 4px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ev.fill { color: #fff; }
-  .ev .t { color: var(--muted); margin-right: 3px; font-variant-numeric: tabular-nums; }
-  .more { font-size: 11px; color: var(--muted); padding-left: 4px; }
+  .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+  .wd { font-size: 11px; color: var(--muted); text-align: center; padding: 2px 0 6px; }
+  .cell { min-height: 84px; padding: 3px; border-radius: 10px; background: rgba(255,255,255,.025); cursor: pointer; overflow: hidden; border: 1px solid transparent; transition: background .15s; }
+  .cell.out { opacity: .35; }
+  .cell.sel { border-color: rgba(91,140,255,.7); background: rgba(91,140,255,.10); box-shadow: inset 0 0 12px rgba(91,140,255,.25); }
+  .num { font-size: 12px; width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 50%; margin: 0 auto 3px; font-variant-numeric: tabular-nums; }
+  .cell.today .num { background: var(--grad); color: #fff; font-weight: 700; box-shadow: var(--glow); }
+  .ev { font-size: 11px; line-height: 17px; height: 17px; border-radius: 5px; padding: 0 4px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev .t { opacity: .7; margin-right: 3px; font-variant-numeric: tabular-nums; }
+  .more { font-size: 10px; color: var(--muted); padding-left: 3px; }
   .loading { opacity: .5; pointer-events: none; }
 
-  /* 语音按钮与面板 */
-  .fab {
-    position: fixed; right: calc(20px + env(safe-area-inset-right)); bottom: calc(20px + env(safe-area-inset-bottom));
-    width: 64px; height: 64px; border-radius: 50%; padding: 0; font-size: 28px; box-shadow: var(--shadow); z-index: 10;
+  /* 底部导航 */
+  .tabbar {
+    position: fixed; left: 50%; transform: translateX(-50%); z-index: 10;
+    bottom: calc(12px + env(safe-area-inset-bottom)); width: min(420px, calc(100% - 32px)); height: var(--nav-h);
+    display: grid; grid-template-columns: repeat(3, 1fr); padding: 6px; border-radius: 22px;
+    background: rgba(14, 18, 34, .72); border: 1px solid var(--edge);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); box-shadow: 0 10px 30px rgba(0,0,0,.45);
   }
-  .sheet {
-    position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-    background: rgba(0, 0, 0, .45); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  .tabbar button {
+    background: transparent; box-shadow: none; color: var(--muted); border-radius: 16px; padding: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 11px; font-weight: 500;
   }
-  .sheet .panel {
-    width: 100%; max-width: 560px; background: var(--card); border-radius: 22px 22px 0 0;
-    padding: 28px 20px calc(24px + env(safe-area-inset-bottom)); text-align: center;
-  }
-  .orb {
-    width: 96px; height: 96px; margin: 8px auto 16px; border-radius: 50%; border: 0; padding: 0;
-    display: grid; place-items: center; font-size: 40px; color: #fff;
-    background: radial-gradient(circle at 30% 30%, #6ea8ff, #2563eb 60%, #7c3aed);
-  }
-  .orb.live { animation: pulse 1.4s ease-in-out infinite; }
-  @keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(79, 140, 255, .55); }
-    70% { box-shadow: 0 0 0 26px rgba(79, 140, 255, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(79, 140, 255, 0); }
-  }
-  .transcript { min-height: 54px; font-size: 20px; font-weight: 600; overflow-wrap: anywhere; }
-  .transcript.placeholder { color: var(--muted); font-weight: 400; font-size: 16px; }
-  .sheet .actions { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
-  .sheet .actions button { min-width: 110px; }
-  .sheet .actions .secondary { background: var(--chip); color: var(--text); }
+  .tabbar button .ic { font-size: 19px; line-height: 1; }
+  .tabbar button.on { color: #fff; background: linear-gradient(135deg, rgba(91,140,255,.35), rgba(168,85,247,.35)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.12), var(--glow); }
+
+  /* 视图切换动画 */
+  .view { animation: rise .25s ease-out; }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
   /* 登录与设置 */
-  .gate { max-width: 420px; margin: 18vh auto 0; width: calc(100% - 32px); }
-  .gate input { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 12px 0; letter-spacing: 1px; }
-  .settings label { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
-  .settings label:first-child { border-top: 0; }
-  select { font: inherit; color: var(--text); background: var(--chip); border: 0; border-radius: 8px; padding: 4px 8px; }
+  .gate { max-width: 400px; width: calc(100% - 32px); margin: 20vh auto 0; text-align: center; }
+  .gate .logo { width: 72px; height: 72px; border-radius: 20px; box-shadow: var(--glow); }
+  .gate h1 { font-size: 24px; margin: 14px 0 6px; }
+  .gate p { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+  .gate input { border: 1px solid var(--edge); background: var(--glass); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; letter-spacing: 1px; text-align: center; }
+  .gate button { width: 100%; padding: 12px; }
+  .settings .line { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
 
   @media (max-width: 600px) {
-    main { padding-left: 8px; padding-right: 8px; }
-    .cell { min-height: 68px; padding: 2px 1px; }
-    .ev { font-size: 10px; line-height: 15px; height: 15px; padding: 0 2px; border-radius: 3px; }
-    .ev .t, .ev .dot { display: none; }
-    .calbar .legend { margin-left: 0; width: 100%; }
-    .when { min-width: 0; font-size: 13px; }
+    main { padding-left: 12px; padding-right: 12px; }
+    .cell { min-height: 62px; padding: 2px; border-radius: 8px; }
+    .ev { font-size: 9.5px; line-height: 14px; height: 14px; padding: 0 2px; border-radius: 3px; }
+    .ev .t { display: none; }
+    .grid { gap: 2px; }
   }
 </style>
 </head>
@@ -146,74 +180,74 @@
 
 <!-- 第一次打开：输入 App 密码 -->
 <section id="gate" class="gate card hidden">
+  <img class="logo" src="icons/icon-192.png" alt="">
   <h1>AI 日程</h1>
-  <p class="hint">第一次使用，请输入 App 密码（在 Apps Script 执行日志里，形如 abcd-efgh-…）。之后这台设备会记住。</p>
+  <p>输入 App 密码（Apps Script 执行日志里，形如 abcd-efgh-…），这台设备会记住</p>
   <input id="tokenInput" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="App 密码">
-  <div class="row">
-    <span id="gateMsg" class="hint"></span>
-    <button id="tokenSave">进入</button>
-  </div>
+  <button id="tokenSave">进入</button>
+  <p id="gateMsg" style="margin:12px 0 0"></p>
 </section>
 
 <main id="app" class="hidden">
-  <header>
-    <h1>AI 日程</h1>
+  <div class="top">
+    <div>
+      <div class="date" id="dateLine"></div>
+      <div class="greet" id="greet">&nbsp;</div>
+    </div>
     <button class="icon" id="settingsBtn" aria-label="设置">⚙︎</button>
-  </header>
-
-  <div class="card settings hidden" id="settings" style="margin-bottom:12px">
-    <label>语音识别语言
-      <select id="langSel">
-        <option value="zh-CN">普通话</option>
-        <option value="yue-Hant-HK">粤语</option>
-        <option value="en-US">English</option>
-      </select>
-    </label>
-    <label>在这台设备上退出 <button class="ghost" id="logout">退出</button></label>
   </div>
 
-  <div class="card">
-    <textarea id="input" placeholder="打字，或点右下角 🎤 说话。例如：明天下午3点和王总开会，提前半小时提醒我"></textarea>
-    <div class="row">
-      <div class="seg" id="catSeg"></div>
-      <button id="send">创建</button>
+  <div class="card settings hidden" id="settings" style="margin-bottom:14px">
+    <div class="line"><span>在这台设备上退出</span><button class="ghost" id="logout">退出</button></div>
+  </div>
+
+  <!-- 今天 -->
+  <section class="view" id="view-today">
+    <div class="composer"><div class="inner">
+      <textarea id="input" placeholder="一句话告诉我，例如：明天下午3点和王总开会，提前半小时提醒我"></textarea>
+      <div class="row">
+        <div class="seg" id="catSeg"></div>
+        <button id="send">创建</button>
+      </div>
+    </div></div>
+    <div id="result" class="result"></div>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="section">今天</div>
+    <div class="card timeline" id="todayList"><div class="empty">加载中…</div></div>
+
+    <div class="section">接下来</div>
+    <div class="card timeline" id="upcoming"><div class="empty">加载中…</div></div>
+  </section>
+
+  <!-- 日历 -->
+  <section class="view hidden" id="view-cal">
+    <div class="card">
+      <div class="calbar">
+        <button class="nav" id="prev" aria-label="上个月">‹</button>
+        <span class="month" id="monthLabel"></span>
+        <button class="nav" id="next" aria-label="下个月">›</button>
+        <button class="todaybtn" id="todayBtn">今天</button>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div class="grid" id="grid"></div>
     </div>
-  </div>
+    <div class="section" id="dayTitle">当天</div>
+    <div class="card timeline" id="dayList"><div class="empty">加载中…</div></div>
+  </section>
 
-  <div id="result" class="result"></div>
-
-  <h2>日历</h2>
-  <div class="card">
-    <div class="calbar">
-      <button class="nav" id="prev" aria-label="上个月">‹</button>
-      <span class="month" id="monthLabel"></span>
-      <button class="nav" id="next" aria-label="下个月">›</button>
-      <button class="todaybtn" id="todayBtn">今天</button>
-      <div class="chips legend" id="legend"></div>
-    </div>
-    <div class="grid" id="grid"></div>
-  </div>
-
-  <h2 id="dayTitle">当天</h2>
-  <div class="card" id="dayList"><div class="empty">加载中…</div></div>
-
-  <h2>待办</h2>
-  <div class="card" id="tasks"><div class="empty">加载中…</div></div>
+  <!-- 待办 -->
+  <section class="view hidden" id="view-tasks">
+    <div class="card" id="tasks"><div class="empty">加载中…</div></div>
+  </section>
 </main>
 
-<button class="fab hidden" id="fab" aria-label="语音新建">🎤</button>
-
-<div class="sheet hidden" id="voice">
-  <div class="panel">
-    <button class="orb" id="orb" aria-label="开始说话">🎤</button>
-    <div class="transcript placeholder" id="transcript">请说话…</div>
-    <div class="hint" id="voiceHint">说完会自动创建</div>
-    <div class="actions">
-      <button class="secondary" id="voiceCancel">取消</button>
-      <button id="voiceDone">完成</button>
-    </div>
-  </div>
-</div>
+<nav class="tabbar hidden" id="tabbar">
+  <button data-view="today" class="on"><span class="ic">◉</span>今天</button>
+  <button data-view="cal"><span class="ic">▦</span>日历</button>
+  <button data-view="tasks"><span class="ic">☑︎</span>待办</button>
+</nav>
 
 <script src="app.js"></script>
 </body>

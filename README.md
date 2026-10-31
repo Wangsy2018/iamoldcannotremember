@@ -31,7 +31,6 @@ https://wangsy2018.github.io/iamoldcannotremember/
 - 后台网址写在 `docs/app.js` 顶部的 `API`
 - 改了界面后，把 `docs/sw.js` 里的 `CACHE` 版本号加一，手机上才会更新
 - 手机：Chrome 打开网址 →「⋮」→「安装应用」/「添加到主屏幕」
-- 长按桌面图标有「语音新建」快捷方式，可以拖到桌面单独放
 
 ## 分类
 
@@ -42,5 +41,5 @@ https://wangsy2018.github.io/iamoldcannotremember/
 ## 已知限制
 
 - Google Tasks 的接口不能设提醒时间，所以带时间或要提醒的事都建成日历事件
-- 语音识别用 Chrome 自带的，需要联网
+- 没有内置语音按钮，想说话就用输入法自带的麦克风
 - 安卓网页 App 不能做桌面小组件

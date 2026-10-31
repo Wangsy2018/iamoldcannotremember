@@ -1,8 +1,8 @@
 // 只缓存界面文件，让 App 能秒开、断网也能打开；数据请求（发往 Google）一律直连不缓存。
 // 界面有改动时把版本号加一，旧缓存会被清掉。
-const CACHE = 'rili-v1';
+const CACHE = 'rili-v2';
 const SHELL = ['./', './index.html', './app.js', './manifest.webmanifest',
-  './icons/icon-192.png', './icons/icon-512.png', './icons/mic-96.png'];
+  './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
