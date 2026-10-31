@@ -1,5 +1,13 @@
 # AI 日程
 
+## 👉 [点这里打开 AI 日程](https://wangsy2018.github.io/iamoldcannotremember/)
+
+https://wangsy2018.github.io/iamoldcannotremember/
+
+手机上用 Chrome 打开后：「⋮」→「安装应用」→「安装」，桌面就有图标了。
+
+---
+
 一句话（打字或语音）建日程和待办，写进 Google 日历 / Google Tasks，按「日常 / 工作 / 重要」分类，带月历视图。
 
 - `docs/`：网页 App（PWA），由 GitHub Pages 发布，可安装到手机桌面
