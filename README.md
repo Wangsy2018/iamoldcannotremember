@@ -1,0 +1,38 @@
+# AI 日程
+
+一句话（打字或语音）建日程和待办，写进 Google 日历 / Google Tasks，按「日常 / 工作 / 重要」分类，带月历视图。
+
+- `docs/`：网页 App（PWA），由 GitHub Pages 发布，可安装到手机桌面
+- `apps-script/`：后台，放在 Google Apps Script 上，负责调用 DeepSeek 和读写日历
+
+仓库里没有任何密钥：DeepSeek key 和 App 密码都存在 Apps Script 的「脚本属性」里。
+
+## 后台（Apps Script）
+
+脚本属性：
+- `DEEPSEEK_API_KEY`：必填
+- `DEEPSEEK_MODEL`：可选，默认 `deepseek-chat`
+- `APP_TOKEN`：App 密码。在编辑器里选 `setupToken` 运行一次自动生成，执行日志里会显示
+
+部署：Web 应用，执行身份「我」，有权访问的人员「任何人」。后台只认带正确 App 密码的请求，其他请求一律拒绝。
+
+改代码后：「部署」→「管理部署」→ 铅笔 → 版本选「新版本」→「部署」，网址不变。
+
+## 网页 App（docs/）
+
+- 后台网址写在 `docs/app.js` 顶部的 `API`
+- 改了界面后，把 `docs/sw.js` 里的 `CACHE` 版本号加一，手机上才会更新
+- 手机：Chrome 打开网址 →「⋮」→「安装应用」/「添加到主屏幕」
+- 长按桌面图标有「语音新建」快捷方式，可以拖到桌面单独放
+
+## 分类
+
+- 每个分类对应一个同名 Google 日历和同名待办清单，第一次用到时自动创建
+- 改分类名或颜色：改 `apps-script/Code.gs` 顶部的 `CATEGORIES`
+- 其他日历（主日历、节假日等）里的事项统一显示为灰色「其他」
+
+## 已知限制
+
+- Google Tasks 的接口不能设提醒时间，所以带时间或要提醒的事都建成日历事件
+- 语音识别用 Chrome 自带的，需要联网
+- 安卓网页 App 不能做桌面小组件
